@@ -1,18 +1,17 @@
-import {EMPTY, GAME_SIZE, HIT, LONGEST_SHIP, MISS, NUMBER_OF_SHIP_PARTS, SHORTEST_SHIP} from './constants';
-import {BehaviorSubject, fromEvent, merge, noop, pipe, Subject} from 'rxjs';
-import {delay, filter, map, repeatWhen, takeWhile, tap} from 'rxjs/operators';
-import {Boards, ComputerMove, Player} from './interfaces';
+import { EMPTY, GAME_SIZE, HIT, LONGEST_SHIP, MISS, NUMBER_OF_SHIP_PARTS, SHORTEST_SHIP } from './constants';
+import { BehaviorSubject, fromEvent, merge, noop, pipe, Subject } from 'rxjs';
+import { delay, filter, map, repeatWhen, takeWhile, tap } from 'rxjs/operators';
+import { Board, Boards, ComputerMove, Player } from './interfaces';
+import { paintBoards, paintScores } from './html-renderer';
 
 export const random = () => Math.floor(Math.random() * Math.floor(GAME_SIZE));
 
 export const validClicks$ = pipe(
     map((e: MouseEvent) => e.target['id']),
-    // do we need this filter?
     filter(e => e)
 );
 
 const playerMove = new Subject();
-// move to inerface
 const computerMove: BehaviorSubject<ComputerMove> = new BehaviorSubject({playerBoard: [], hits: {}});
 
 const shot = (
@@ -26,14 +25,13 @@ const shot = (
             [x, y, boards[player][x][y] === HIT, boardValue]
     ))(boards[player][x][y]);
 
-// additionally nearest area could be checked + add constrain in game setup
+// TODO: additionally nearest area could be checked + add constrain in game setup
 const isValidMove = (boards: Boards, player, x, y): boolean =>
     boards[player][x][y] !== HIT && boards[player][x][y] !== MISS;
 
 const performShot$ = (
     boards: Boards,
     player: Player,
-    // use an interface
     nextMove: (x, y, wasHit, boardValue) => void
 ) =>
     pipe(
@@ -46,7 +44,7 @@ const performShot$ = (
         map(([_, x, y]) => shot(boards, player, x, y)),
         tap(
             ([x, y, wasHit, boardValue]) => (
-                printBoard(boards),
+                paintBoards(boards),
                     nextMove(x, y, wasHit, boardValue),
                     paintScores(computerScore$, playerScore$)
             )
@@ -54,7 +52,7 @@ const performShot$ = (
     );
 
 const computerHits = (
-    playerBoard: number[][],
+    playerBoard: Board,
     x: number,
     y: number,
     wasHit: boolean,
@@ -66,7 +64,6 @@ const computerHits = (
     if (!computerMove.value.hits[boardValue]) {
         computerMove.value.hits[boardValue] = [];
     }
-    // can I push smth into behaviour subject value
     computerMove.value.hits[boardValue].push({x, y});
     computerMove.value.playerBoard = playerBoard;
 
@@ -77,7 +74,6 @@ const computerHits = (
 // what's the  return type
 const nextComputerMove = (): [string, number, number] => {
     const hits = computerMove.value.hits;
-    // what's the naming
     const shipToPursue = Object.keys(hits).find(
         e => hits[e].length !== parseInt(e)
     );
@@ -108,7 +104,6 @@ const nextComputerMove = (): [string, number, number] => {
 
     const getOrderedHits = key =>
         (orderedHits => [orderedHits[0], orderedHits[orderedHits.length - 1]])(
-            // can sort be simplified?
             shipHits.sort((h1, h2) => (h1[key] > h2[key] ? 1 : -1))
         );
 
@@ -130,8 +125,8 @@ const nextComputerMove = (): [string, number, number] => {
     return [
         Player.PLAYER,
         playerBoard[min.x - 1] !== undefined &&
-        playerBoard[min.x - 1] !== HIT &&
-        playerBoard[min.x - 1] !== MISS
+        playerBoard[min.x - 1][min.y] !== HIT &&
+        playerBoard[min.x - 1][min.y] !== MISS
             ? min.x - 1
             : min.x + 1,
         min.y
@@ -146,7 +141,6 @@ const initialScore = () => ({
 });
 export const playerScore$ = new BehaviorSubject(initialScore());
 export const computerScore$ = new BehaviorSubject(initialScore());
-// rename
 export const isNotGameOver = _ =>
     computerScore$.value.score < NUMBER_OF_SHIP_PARTS &&
     playerScore$.value.score < NUMBER_OF_SHIP_PARTS;

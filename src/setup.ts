@@ -1,9 +1,9 @@
-import {Board, Boards, Player} from './interfaces';
-import {EMPTY, GAME_SIZE, NUMBER_OF_SHIP_PARTS} from './constants';
-import {concat, fromEvent, interval, noop, of, pipe} from 'rxjs';
-import {filter, map, scan, take, tap} from 'rxjs/operators';
-
-// TODO: rename col to cell wherever needed
+import { Board, Boards, Player } from './interfaces';
+import { EMPTY, GAME_SIZE, NUMBER_OF_SHIP_PARTS } from './constants';
+import { concat, fromEvent, interval, noop, Observable, of, pipe } from 'rxjs';
+import { filter, map, scan, take, tap } from 'rxjs/operators';
+import { random, validClicks$ } from './game';
+import { computerScoreContainer, paintBoards$, playerScoreContainer } from './html-renderer';
 
 /*
 rows: [
@@ -18,12 +18,12 @@ x x3y1  x3y1  x3y1  x3y1
 x x4y1  x4y1  x4y1  x4y1
  */
 
-const board = [
-    ['x1y1', 'x1y2', 'x1y3', 'x1y4'],
-    ['x2y1', 'x2y2', 'x2y3', 'x2y4'],
-    ['x3y1', 'x3y2', 'x3y3', 'x3y4'],
-    ['x4y1', 'x4y2', 'x4y3', 'x4y4'],
-];
+// const board = [
+//     ['x1y1', 'x1y2', 'x1y3', 'x1y4'],
+//     ['x2y1', 'x2y2', 'x2y3', 'x2y4'],
+//     ['x3y1', 'x3y2', 'x3y3', 'x3y4'],
+//     ['x4y1', 'x4y2', 'x4y3', 'x4y4'],
+// ];
 
 // ship = 1
 // x = 1
@@ -61,7 +61,7 @@ const isThereEnoughSpaceForNextMove = (
     const checkSpace = (arr, start, end) => {
         const startIndex = arr.lastIndexOf(
             (e, i) => e !== EMPTY && e !== ship && i < start
-        ); // TODO: bug? always returns -1
+        ); // always returns -1 ?
         const endIndex = arr.findIndex(
             (e, i) => e !== EMPTY && e !== ship && i > end
         );
@@ -87,7 +87,6 @@ const getValidMoves = (
     expectedPlayer: Player,
     boards: Boards,
     ship: number,
-    // what does name needed for?
     [name, x, y]
 ): any[] => {
     const board = boards[expectedPlayer];
@@ -164,7 +163,7 @@ const canMove = (
 
 // RXJS
 
-// player as Player, not string
+// TODO: check availability in range of ship length, not only the nearest cells
 const addShips$ = (player: Player, boards: Boards) =>
     pipe(
         map((e: string) => e.split(',')),
@@ -199,7 +198,7 @@ const addShips$ = (player: Player, boards: Boards) =>
                 (boards[player][coords[1]][coords[2]] = ship), boards
             )
         ),
-        paintBoards,
+        paintBoards$,
         take(NUMBER_OF_SHIP_PARTS)
     );
 
@@ -229,7 +228,10 @@ const createBoard = () =>
         .fill(EMPTY)
         .map(_ => Array(GAME_SIZE).fill(EMPTY));
 
-export const emptyBoards$ = of({});
+export const emptyBoards$: Observable<Boards> = of({
+    [Player.PLAYER]: createBoard(),
+    [Player.COMPUTER]: createBoard(),
+});
 
 export const setup$ = (boards: Boards) =>
     concat(

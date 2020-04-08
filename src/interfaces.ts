@@ -6,10 +6,10 @@ export enum Player {
 }
 
 export type Boards = {
-    [key in Player]: [string, Board];
+    [key in Player]: Board;
 };
 
 export interface ComputerMove {
-    playerBoard: number[];
+    playerBoard: Board;
     hits: {};
 }
